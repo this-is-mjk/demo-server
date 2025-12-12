@@ -99,56 +99,44 @@ docker run -p 8000:8000 jaundice-api
     "models": {
       "status": "loaded",
       "loaded_models": ["face", "eyes"],
-      "device": "cuda"
+      "device": "mps"
     }
   }
   ```
 
-### Face Jaundice Detection
-- **URL**: `POST /predict/face`
-- **Body**: `multipart/form-data` with `file` (image)
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "prediction": "jaundice",
-    "is_jaundice": true,
-    "confidence": 95.5,
-    "probabilities": {"jaundice": 95.5, "normal": 4.5},
-    "model_type": "face",
-    "image_path": "/assets/uuid.jpg"
-  }
-  ```
-
-### Eye Jaundice Detection
-- **URL**: `POST /predict/eyes`
-- **Body**: `multipart/form-data` with `file` (eye image)
-
-### Combined Detection
-- **URL**: `POST /predict/combined`
-- **Body**: `multipart/form-data` with `face_file` and/or `eyes_file`
-- **Response**:
-  ```json
-  {
-    "success": true,
-    "combined_prediction": "jaundice",
-    "is_jaundice": true,
-    "combined_confidence": 92.3,
-    "combined_probabilities": {"jaundice": 92.3, "normal": 7.7},
-    "face_result": {...},
-    "eyes_result": {...}
-  }
-  ```
-
-### Base64 Endpoints
-- `POST /predict/face/base64` - Face prediction with base64 image
-- `POST /predict/eyes/base64` - Eyes prediction with base64 image
-- `POST /predict/combined/base64` - Combined prediction with base64 images
-
-### Full Health Analysis
+### Disease Inference
 - **URL**: `POST /infer`
-- **Body**: `multipart/form-data` with `files` (multiple images)
-- **Response**: Complete health analysis including jaundice detection, face analysis, pallor analysis, and eye analysis
+- **Description**: Universal endpoint for Jaundice (image) and Parkinson's (audio) detection.
+- **Body**: `multipart/form-data`
+  - `files`: List of images (face/eyes)
+  - `audio`: Audio file (wav/mp3)
+- **Response**:
+  ```json
+  {
+    "health_score": 95,
+    "jaundice_analysis": {
+      "detected": false,
+      "confidence": 98.5,
+      "severity": "None",
+      "tip": "No signs of jaundice detected."
+    },
+    "audio_analysis": {
+      "pitch_hz": 120.5,
+      "jitter_percent": 0.45,
+      "parkinsons_detected": false,
+      "confidence": 98.5
+    },
+    "recommendations": [
+      "Stay hydrated.",
+      "Get quality sleep."
+    ],
+    "images": ["/assets/uuid.jpg"]
+  }
+  ```
+
+### Demo Inference
+- **URL**: `POST /demo/infer`
+- **Description**: Returns curated demo data for testing UI integration.
 
 ## Retraining Models
 

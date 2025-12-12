@@ -34,15 +34,13 @@ app.include_router(inference.router, tags=["Inference"])
 async def root():
     """Root endpoint with API information."""
     return {
-        "name": "Jaundice Detection API",
+        "name": "Disease Detection API",
         "version": "1.0.0",
         "docs": "/docs",
         "endpoints": {
             "health": "/health",
-            "predict_face": "/predict/face",
-            "predict_eyes": "/predict/eyes",
-            "predict_combined": "/predict/combined",
-            "full_analysis": "/infer"
+            "inference": "/infer",
+            "demo_inference": "/demo/infer"
         }
     }
 

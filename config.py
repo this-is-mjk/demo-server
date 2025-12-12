@@ -29,7 +29,19 @@ MODEL_CONFIG = {
 }
 
 # Inference settings
-DEVICE = os.getenv("DEVICE", "cuda")  # 'cuda' or 'cpu'
+import torch
+
+def get_device():
+    if torch.cuda.is_available():
+        return "cuda"
+    try:
+        if torch.backends.mps.is_available():
+            return "mps"
+    except (AttributeError, ImportError):
+        pass
+    return "cpu"
+
+DEVICE = os.getenv("DEVICE", get_device())
 CONFIDENCE_THRESHOLD = 0.7  # Minimum confidence for positive jaundice detection
 
 # Assets directory for uploaded images

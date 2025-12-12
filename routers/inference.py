@@ -1,27 +1,21 @@
 """
 Inference Router
-Handles image upload and jaundice detection endpoints.
+Handles image upload, jaundice detection, and audio analysis endpoints.
 """
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from schemas.request_response import (
     InferenceResponse,
-    FaceAnalysis,
-    PallorAnalysis,
-    EyeAnalysis,
     JaundiceAnalysis,
-    JaundiceOnlyResponse,
-    CombinedJaundiceResponse,
-    Base64ImageRequest,
-    CombinedBase64Request
+    AudioAnalysis
 )
 from services.model_engine import model_engine
+from services.audio_engine import audio_engine
 from config import CONFIDENCE_THRESHOLD
 from typing import List, Optional
 import shutil
 import uuid
 import os
-import base64
 
 router = APIRouter()
 
@@ -61,6 +55,7 @@ async def save_uploaded_file(file: UploadFile) -> str:
     file_extension = file.filename.split(".")[-1] if "." in file.filename else "jpg"
     file_id = str(uuid.uuid4())
     filename = f"{file_id}.{file_extension}"
+    # Ensure unique filename collision avoidance
     file_path = os.path.join(ASSETS_DIR, filename)
     
     with open(file_path, "wb") as buffer:
@@ -69,283 +64,146 @@ async def save_uploaded_file(file: UploadFile) -> str:
     return f"/assets/{filename}"
 
 
-# ============ Jaundice Detection Endpoints ============
-
-@router.post("/predict/face", response_model=JaundiceOnlyResponse)
-async def predict_face(file: UploadFile = File(...)):
-    """
-    Predict jaundice from a face image.
-    
-    Upload a face image and get jaundice prediction using the face model.
-    """
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
-    
-    # Read image bytes
-    image_bytes = await file.read()
-    await file.seek(0)  # Reset for saving
-    
-    # Save file
-    image_path = await save_uploaded_file(file)
-    
-    # Run prediction
-    result = await model_engine.predict_face(image_bytes)
-    
-    return JaundiceOnlyResponse(
-        success=True,
-        prediction=result['prediction'],
-        is_jaundice=result['is_jaundice'],
-        confidence=result['confidence'],
-        probabilities=result['probabilities'],
-        model_type=result['model_type'],
-        image_path=image_path
-    )
-
-
-@router.post("/predict/eyes", response_model=JaundiceOnlyResponse)
-async def predict_eyes(file: UploadFile = File(...)):
-    """
-    Predict jaundice from an eye/sclera image.
-    
-    Upload an eye image and get jaundice prediction using the eyes model.
-    """
-    if not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="File must be an image")
-    
-    image_bytes = await file.read()
-    await file.seek(0)
-    
-    image_path = await save_uploaded_file(file)
-    
-    result = await model_engine.predict_eyes(image_bytes)
-    
-    return JaundiceOnlyResponse(
-        success=True,
-        prediction=result['prediction'],
-        is_jaundice=result['is_jaundice'],
-        confidence=result['confidence'],
-        probabilities=result['probabilities'],
-        model_type=result['model_type'],
-        image_path=image_path
-    )
-
-
-@router.post("/predict/combined", response_model=CombinedJaundiceResponse)
-async def predict_combined(
-    face_file: Optional[UploadFile] = File(None),
-    eyes_file: Optional[UploadFile] = File(None)
-):
-    """
-    Predict jaundice using both face and eyes images.
-    
-    Upload face and/or eyes images for combined analysis.
-    At least one image must be provided.
-    """
-    if face_file is None and eyes_file is None:
-        raise HTTPException(status_code=400, detail="At least one image (face or eyes) must be provided")
-    
-    face_bytes = None
-    eyes_bytes = None
-    image_paths = []
-    
-    if face_file and face_file.content_type.startswith("image/"):
-        face_bytes = await face_file.read()
-        await face_file.seek(0)
-        image_paths.append(await save_uploaded_file(face_file))
-    
-    if eyes_file and eyes_file.content_type.startswith("image/"):
-        eyes_bytes = await eyes_file.read()
-        await eyes_file.seek(0)
-        image_paths.append(await save_uploaded_file(eyes_file))
-    
-    result = await model_engine.predict_combined(face_bytes, eyes_bytes)
-    
-    return CombinedJaundiceResponse(
-        success=True,
-        combined_prediction=result['combined_prediction'],
-        is_jaundice=result['is_jaundice'],
-        combined_confidence=result['combined_confidence'],
-        combined_probabilities=result['combined_probabilities'],
-        face_result=result['individual_results'].get('face'),
-        eyes_result=result['individual_results'].get('eyes'),
-        image_paths=image_paths
-    )
-
-
-@router.post("/predict/face/base64", response_model=JaundiceOnlyResponse)
-async def predict_face_base64(request: Base64ImageRequest):
-    """
-    Predict jaundice from a base64 encoded face image.
-    """
-    try:
-        image_data = request.image
-        if ',' in image_data:
-            image_data = image_data.split(',')[1]
-        image_bytes = base64.b64decode(image_data)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid base64 image: {str(e)}")
-    
-    result = await model_engine.predict_face(image_bytes)
-    
-    return JaundiceOnlyResponse(
-        success=True,
-        prediction=result['prediction'],
-        is_jaundice=result['is_jaundice'],
-        confidence=result['confidence'],
-        probabilities=result['probabilities'],
-        model_type=result['model_type']
-    )
-
-
-@router.post("/predict/eyes/base64", response_model=JaundiceOnlyResponse)
-async def predict_eyes_base64(request: Base64ImageRequest):
-    """
-    Predict jaundice from a base64 encoded eye image.
-    """
-    try:
-        image_data = request.image
-        if ',' in image_data:
-            image_data = image_data.split(',')[1]
-        image_bytes = base64.b64decode(image_data)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid base64 image: {str(e)}")
-    
-    result = await model_engine.predict_eyes(image_bytes)
-    
-    return JaundiceOnlyResponse(
-        success=True,
-        prediction=result['prediction'],
-        is_jaundice=result['is_jaundice'],
-        confidence=result['confidence'],
-        probabilities=result['probabilities'],
-        model_type=result['model_type']
-    )
-
-
-@router.post("/predict/combined/base64", response_model=CombinedJaundiceResponse)
-async def predict_combined_base64(request: CombinedBase64Request):
-    """
-    Predict jaundice using base64 encoded face and/or eyes images.
-    """
-    if request.face_image is None and request.eyes_image is None:
-        raise HTTPException(status_code=400, detail="At least one image must be provided")
-    
-    face_bytes = None
-    eyes_bytes = None
-    
-    try:
-        if request.face_image:
-            data = request.face_image
-            if ',' in data:
-                data = data.split(',')[1]
-            face_bytes = base64.b64decode(data)
-        
-        if request.eyes_image:
-            data = request.eyes_image
-            if ',' in data:
-                data = data.split(',')[1]
-            eyes_bytes = base64.b64decode(data)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid base64 image: {str(e)}")
-    
-    result = await model_engine.predict_combined(face_bytes, eyes_bytes)
-    
-    return CombinedJaundiceResponse(
-        success=True,
-        combined_prediction=result['combined_prediction'],
-        is_jaundice=result['is_jaundice'],
-        combined_confidence=result['combined_confidence'],
-        combined_probabilities=result['combined_probabilities'],
-        face_result=result['individual_results'].get('face'),
-        eyes_result=result['individual_results'].get('eyes')
-    )
-
-
 # ============ Full Health Analysis Endpoint ============
 
 @router.post("/infer", response_model=InferenceResponse)
-async def infer_images(files: List[UploadFile] = File(...)):
+async def infer_images(
+    files: List[UploadFile] = File(None),
+    audio: Optional[UploadFile] = File(None)
+):
     """
     Full health inference endpoint.
-    
-    Accepts multiple images (face and/or eyes) and returns comprehensive
-    health analysis including jaundice detection.
+    Accepts multiple images (face and/or eyes) and/or audio.
+    Returns comprehensive health analysis including jaundice detection and audio analysis.
     """
     saved_image_paths = []
     os.makedirs(ASSETS_DIR, exist_ok=True)
     
+    # --- 1. Audio Processing ---
+    audio_analysis = None
+    if audio:
+        audio_ext = audio.filename.split(".")[-1] if "." in audio.filename else "wav"
+        audio_id = str(uuid.uuid4())
+        audio_filename = f"{audio_id}.{audio_ext}"
+        audio_path = os.path.join(ASSETS_DIR, audio_filename)
+        
+        with open(audio_path, "wb") as buffer:
+            shutil.copyfileobj(audio.file, buffer)
+            
+        saved_image_paths.append(f"/assets/{audio_filename}")
+        
+        # Analyze audio
+        audio_results = audio_engine.analyze_audio(audio_path)
+        if audio_results and "error" not in audio_results and "warning" not in audio_results:
+             audio_analysis = AudioAnalysis(**audio_results)
+        elif audio_results:
+             # handle error/warning cases gracefully
+             audio_analysis = AudioAnalysis(
+                 pitch_hz=0, jitter_percent=0, shimmer_percent=0, 
+                 parkinsons_detected=False, confidence=0, 
+                 **audio_results
+             )
+
+    # --- 2. Image Processing ---
     face_bytes = None
     eyes_bytes = None
+    # --- 2. Image Processing & Jaundice Detection ---
+    jaundice_analysis = None
     
-    for file in files:
-        if not file.content_type.startswith("image/"):
-            continue
-        
-        # Read bytes for model
-        image_bytes = await file.read()
-        await file.seek(0)
-        
-        # Determine image type from filename or use first as face, second as eyes
-        filename_lower = file.filename.lower()
-        if 'eye' in filename_lower or 'sclera' in filename_lower:
-            eyes_bytes = image_bytes
-        elif 'face' in filename_lower:
-            face_bytes = image_bytes
-        elif face_bytes is None:
-            face_bytes = image_bytes
-        elif eyes_bytes is None:
-            eyes_bytes = image_bytes
-        
-        # Save file
-        saved_image_paths.append(await save_uploaded_file(file))
+    # Aggregation variables
+    is_jaundice_detected_any = False
+    max_confidence_jaundice = 0.0
+    max_confidence_normal = 0.0
     
-    if not saved_image_paths:
-        raise HTTPException(status_code=400, detail="No valid images uploaded.")
+    # Keep track of individual results to find the "worst" case
+    worst_case_result = None
     
-    # Run jaundice detection
-    jaundice_result = await model_engine.predict_combined(face_bytes, eyes_bytes)
+    if files:
+        for file in files:
+            if not file.content_type.startswith("image/"):
+                continue
+            
+            # Read bytes for model
+            image_bytes = await file.read()
+            await file.seek(0)
+            
+            # Save file
+            saved_image_paths.append(await save_uploaded_file(file))
+
+            # Determine model type based on filename
+            filename_lower = file.filename.lower()
+            model_type = 'eyes' if ('eye' in filename_lower or 'sclera' in filename_lower) else 'face'
+            
+            # Run prediction
+            if model_type == 'eyes':
+                 result = await model_engine.predict_eyes(image_bytes)
+            else:
+                 result = await model_engine.predict_face(image_bytes)
+            
+            # Aggregate logic: "If you find issue with some file go ahead and report jaundice"
+            if result['is_jaundice']:
+                is_jaundice_detected_any = True
+                if result['confidence'] > max_confidence_jaundice:
+                    max_confidence_jaundice = result['confidence']
+                    worst_case_result = result
+            else:
+                # Track highest confidence normal if no jaundice found yet
+                if result['confidence'] > max_confidence_normal:
+                    max_confidence_normal = result['confidence']
+                    if not is_jaundice_detected_any and worst_case_result is None:
+                         worst_case_result = result
+
+    # Final decision logic
+    is_jaundice = is_jaundice_detected_any
+    confidence = max_confidence_jaundice if is_jaundice else max_confidence_normal
     
-    is_jaundice = jaundice_result['is_jaundice']
-    confidence = jaundice_result['combined_confidence']
+    # Fallback if no valid images processed
+    if worst_case_result is None and saved_image_paths:
+         # Should effectively not happen if images were processed, but safety check
+         confidence = 0
+         if not is_jaundice: confidence = 0
+
     severity = get_jaundice_severity(confidence, is_jaundice)
-    
-    # Build jaundice analysis
-    jaundice_analysis = JaundiceAnalysis(
-        detected=is_jaundice,
-        confidence=confidence,
-        severity=severity,
-        face_result=jaundice_result['individual_results'].get('face'),
-        eyes_result=jaundice_result['individual_results'].get('eyes'),
-        tip=get_jaundice_tip(is_jaundice, severity)
-    )
-    
-    # Build other analysis (can be enhanced with additional models)
-    face_analysis = FaceAnalysis(
-        skin_condition="healthy" if not is_jaundice else "yellowish tint detected",
-        hydration_level="85%",
-        fatigue_level="low",
-        tip="Maintain regular skincare and stay hydrated."
-    )
-    
-    pallor_analysis = PallorAnalysis(
-        pallor_level="None" if not is_jaundice else "Mild",
-        est_hemoglobin="14.2 g/dL",
-        possible_anemia="No",
-        tip="Include iron-rich foods in your diet."
-    )
-    
-    eye_analysis = EyeAnalysis(
-        sclera_condition="Clear" if not is_jaundice else "Yellowish",
-        conjunctiva_color="Pink",
-        signs_of_anemia="None",
-        signs_of_jaundice="None" if not is_jaundice else severity,
-        tip=get_jaundice_tip(is_jaundice, severity)
-    )
+
+    if worst_case_result:
+        jaundice_analysis = JaundiceAnalysis(
+            detected=is_jaundice,
+            confidence=confidence,
+            severity=severity,
+            # We map specific result to the schema. 
+            # Note: The schema expects 'face_result' and 'eyes_result'. 
+            # We populate the relevant one based on what triggered the decision.
+            face_result=worst_case_result if worst_case_result['model_type'] == 'face' else None,
+            eyes_result=worst_case_result if worst_case_result['model_type'] == 'eyes' else None,
+            tip=get_jaundice_tip(is_jaundice, severity)
+        )
+        
+
+    # Check validity
+    if not saved_image_paths and not audio_analysis:
+        raise HTTPException(status_code=400, detail="No valid input provided (images or audio).")
     
     # Calculate health score
-    health_score = 95 if not is_jaundice else max(40, int(95 - confidence * 0.5))
-    
-    # Build recommendations
+    # logic: Start at 100.
+    # If Jaundice detected: deduct up to 60 points based on confidence (40-100 range).
+    # If Parkinson's detected: deduct up to 50 points based on confidence.
+    # Minimum score cap at 20.
+    current_score = 100
+
+    if is_jaundice:
+        # Confidence is 0-100. If 100% confident, deduct 60 points -> score 40.
+        deduction = (confidence / 100.0) * 60
+        current_score -= deduction
+
+    if audio_analysis and audio_analysis.parkinsons_detected:
+        # If Parkinson's detected with 100% confidence, deduct 50 points.
+        deduction = (audio_analysis.confidence / 100.0) * 50
+        current_score -= deduction
+
+    # Ensure score stays within reasonable bounds [10, 100]
+    health_score = int(max(10, current_score))
+
+    # Recommendations
     recommendations = [
         "Stay hydrated with at least 8 glasses of water daily.",
         "Get 7-8 hours of quality sleep.",
@@ -356,61 +214,63 @@ async def infer_images(files: List[UploadFile] = File(...)):
         recommendations.insert(0, "⚠️ Jaundice indicators detected. Please consult a healthcare provider.")
         if severity in ["Moderate", "Severe"]:
             recommendations.insert(1, "Consider getting liver function tests done.")
-    
+            
+    if audio_analysis and audio_analysis.parkinsons_detected:
+        recommendations.insert(0, "⚠️ Audio analysis suggests potential Parkinson's indicators. Please consult a specialist.")
+
     return InferenceResponse(
         health_score=health_score,
         jaundice_analysis=jaundice_analysis,
-        face_analysis=face_analysis,
-        pallor_analysis=pallor_analysis,
-        eye_analysis=eye_analysis,
+        audio_analysis=audio_analysis,
         recommendations=recommendations,
         images=saved_image_paths
     )
 
 
 @router.post("/demo/infer", response_model=InferenceResponse)
-async def demo_infer_images(files: List[UploadFile] = File(...)):
+async def demo_infer_images(
+    files: List[UploadFile] = File(None),
+    audio: Optional[UploadFile] = File(None)
+):
     """
-    Demo endpoint with curated healthy results.
+    Demo endpoint with curated results.
     """
     saved_image_paths = []
     os.makedirs(ASSETS_DIR, exist_ok=True)
     
-    for file in files:
-        if not file.content_type.startswith("image/"):
-            continue
-        saved_image_paths.append(await save_uploaded_file(file))
-    
-    if not saved_image_paths:
-        raise HTTPException(status_code=400, detail="No valid images uploaded.")
-    
+    # Demo Audio
+    audio_analysis = None
+    if audio:
+        saved_image_paths.append(await save_uploaded_file(audio))
+        audio_analysis = AudioAnalysis(
+            pitch_hz=120.5,
+            jitter_percent=0.45,
+            shimmer_percent=1.2,
+            parkinsons_detected=False,
+            confidence=98.5
+        )
+
+    # Demo Images
+    has_images = False
+    if files:
+        for file in files:
+            if not file.content_type.startswith("image/"):
+                continue
+            saved_image_paths.append(await save_uploaded_file(file))
+            has_images = True
+            
+    if not saved_image_paths and not audio_analysis:
+        raise HTTPException(status_code=400, detail="No valid inputs.")
+
     return InferenceResponse(
-        health_score=92,
+        health_score=85, # Demo score: 100 - (15 deduction for partial confidence)
         jaundice_analysis=JaundiceAnalysis(
             detected=False,
             confidence=98.5,
             severity="None",
             tip="No signs of jaundice detected. Keep up the healthy lifestyle!"
-        ),
-        face_analysis=FaceAnalysis(
-            skin_condition="healthy",
-            hydration_level="88%",
-            fatigue_level="low",
-            tip="Your skin looks great! Keep drinking water."
-        ),
-        pallor_analysis=PallorAnalysis(
-            pallor_level="None",
-            est_hemoglobin="14.5 g/dL",
-            possible_anemia="No",
-            tip="Iron levels appear normal."
-        ),
-        eye_analysis=EyeAnalysis(
-            sclera_condition="Clear",
-            conjunctiva_color="Pink",
-            signs_of_anemia="None",
-            signs_of_jaundice="None",
-            tip="No signs of strain or discoloration."
-        ),
+        ) if has_images else None,
+        audio_analysis=audio_analysis,
         recommendations=[
             "Maintain your current balanced diet.",
             "Continue with regular exercise.",

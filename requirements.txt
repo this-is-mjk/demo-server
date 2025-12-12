@@ -2,6 +2,12 @@
 fastapi
 uvicorn[standard]
 python-multipart
+praat-parselmouth
+joblib
+scipy
+# parselmouth
+sounddevice
+pandas
 
 # PyTorch and Deep Learning
 torch>=2.0.0
