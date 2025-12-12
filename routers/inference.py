@@ -79,3 +79,66 @@ async def infer_images(files: List[UploadFile] = File(...)):
         ],
         images=saved_image_paths
     )
+
+@router.post("/demo/infer", response_model=InferenceResponse)
+async def demo_infer_images(files: List[UploadFile] = File(...)):
+    """
+    Demo endpoint returning curated realistic dummy data.
+    """
+    saved_image_paths = []
+    
+    # Ensure assets directory exists
+    os.makedirs(ASSETS_DIR, exist_ok=True)
+
+    for file in files:
+        if not file.content_type.startswith("image/"):
+            continue 
+            
+        file_extension = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+        file_id = str(uuid.uuid4())
+        filename = f"{file_id}.{file_extension}"
+        file_path = os.path.join(ASSETS_DIR, filename)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        saved_image_paths.append(f"/assets/{filename}")
+
+    if not saved_image_paths:
+         raise HTTPException(status_code=400, detail="No valid images uploaded.")
+
+    # Curated "Real-looking" Dummy Data for Demo
+    face_analysis = FaceAnalysis(
+        skin_condition="healthy",
+        hydration_level="88%",
+        fatigue_level="low",
+        tip="Your skin looks great! Keep drinking water."
+    )
+    
+    pallor_analysis = PallorAnalysis(
+        pallor_level="None",
+        est_hemoglobin="14.5 g/dL",
+        possible_anemia="No",
+        tip="Iron levels appear normal."
+    )
+    
+    eye_analysis = EyeAnalysis(
+        sclera_condition="Clear",
+        conjunctiva_color="Pink",
+        signs_of_anemia="None",
+        signs_of_jaundice="None",
+        tip="No signs of strain or discoloration."
+    )
+    
+    return InferenceResponse(
+        health_score=92,
+        face_analysis=face_analysis,
+        pallor_analysis=pallor_analysis,
+        eye_analysis=eye_analysis,
+        recommendations=[
+            "Maintain your current balanced diet.",
+            "Continue with regular exercise.",
+            "Stay hydrated to keep your skin glowing."
+        ],
+        images=saved_image_paths
+    )
