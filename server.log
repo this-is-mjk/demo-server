@@ -1,0 +1,15 @@
+nohup: ignoring input
+INFO:     Started server process [451211]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+Loading jaundice detection models...
+✓ Face model loaded from: /home/aasiku/Jaundic/demo-server/jaundice_detection/weights/face/best_model.pth
+✓ Eyes model loaded from: /home/aasiku/Jaundic/demo-server/jaundice_detection/weights/eyes/best_model.pth
+✓ Using device: cuda
+✓ Models loaded successfully!
+INFO:     127.0.0.1:39872 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48492 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57128 - "POST /predict/face HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59546 - "POST /predict/face HTTP/1.1" 200 OK
+INFO:     127.0.0.1:45484 - "POST /infer HTTP/1.1" 200 OK
