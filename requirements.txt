@@ -1,3 +1,11 @@
 fastapi
 uvicorn
 python-multipart
+praat-parselmouth
+joblib
+scipy
+numpy
+scikit-learn
+# parselmouth
+sounddevice
+pandas

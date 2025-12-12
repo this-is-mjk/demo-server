@@ -20,11 +20,21 @@ class EyeAnalysis(BaseModel):
     signs_of_jaundice: str
     tip: str
 
+class AudioAnalysis(BaseModel):
+    pitch_hz: float
+    jitter_percent: float
+    shimmer_percent: float
+    parkinsons_detected: bool
+    confidence: float
+    warning: Optional[str] = None
+    error: Optional[str] = None
+
 class InferenceResponse(BaseModel):
     health_score: int
-    face_analysis: FaceAnalysis
-    pallor_analysis: PallorAnalysis
-    eye_analysis: EyeAnalysis
+    face_analysis: Optional[FaceAnalysis] = None
+    pallor_analysis: Optional[PallorAnalysis] = None
+    eye_analysis: Optional[EyeAnalysis] = None
+    audio_analysis: Optional[AudioAnalysis] = None
     recommendations: List[str]
     images: List[str]
 
