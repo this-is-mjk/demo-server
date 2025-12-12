@@ -7,7 +7,8 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from schemas.request_response import (
     InferenceResponse,
     JaundiceAnalysis,
-    AudioAnalysis
+    AudioAnalysis,
+    JaundicePrediction
 )
 from services.model_engine import model_engine
 from services.audio_engine import audio_engine
@@ -65,6 +66,63 @@ async def save_uploaded_file(file: UploadFile) -> str:
 
 
 # ============ Full Health Analysis Endpoint ============
+
+@router.post("/infer/face", response_model=JaundicePrediction)
+async def infer_face(file: UploadFile = File(...)):
+    """
+    Dedicated endpoint for Face Jaundice Detection.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
+    
+    image_bytes = await file.read()
+    # Save for auditing/debugging if needed
+    await save_uploaded_file(file) 
+    
+    result = await model_engine.predict_face(image_bytes)
+    return JaundicePrediction(**result)
+
+
+@router.post("/infer/eyes", response_model=JaundicePrediction)
+async def infer_eyes(file: UploadFile = File(...)):
+    """
+    Dedicated endpoint for Eyes Jaundice Detection.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Invalid file type. Please upload an image.")
+    
+    image_bytes = await file.read()
+    await save_uploaded_file(file)
+    
+    result = await model_engine.predict_eyes(image_bytes)
+    return JaundicePrediction(**result)
+
+
+@router.post("/infer/audio", response_model=AudioAnalysis)
+async def infer_audio(file: UploadFile = File(...)):
+    """
+    Dedicated endpoint for Parkinson's Audio Detection.
+    """
+    os.makedirs(ASSETS_DIR, exist_ok=True)
+    audio_ext = file.filename.split(".")[-1] if "." in file.filename else "wav"
+    audio_id = str(uuid.uuid4())
+    audio_filename = f"{audio_id}.{audio_ext}"
+    audio_path = os.path.join(ASSETS_DIR, audio_filename)
+    
+    with open(audio_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Analyze audio
+    audio_results = audio_engine.analyze_audio(audio_path)
+    
+    if not audio_results:
+         raise HTTPException(status_code=500, detail="Audio analysis failed.")
+            
+    if "error" in audio_results:
+         raise HTTPException(status_code=400, detail=audio_results["error"])
+
+    return AudioAnalysis(**audio_results)
+
 
 @router.post("/infer", response_model=InferenceResponse)
 async def infer_images(
