@@ -1,167 +1,145 @@
-# Jaundice Detection API
+# Disease Detection API
 
 ## Overview
-The Jaundice Detection API is a FastAPI-based backend service powered by EfficientNet deep learning models. It analyzes face and eye images to detect signs of jaundice with high accuracy.
+The **Disease Detection API** is a comprehensive diagnostic system that leverages multi-modal machine learning to detect early signs of disease. It combines computer vision for **Jaundice Detection** and acoustic analysis for **Parkinson's Disease Detection** into a single, high-performance REST API.
 
 ## Features
-- **AI-Powered Detection**: Uses trained EfficientNet-B0 models for jaundice classification
-- **Dual Model System**: Separate models for face and eye analysis
-- **Combined Predictions**: Weighted ensemble of both models for improved accuracy
-- **Multiple Input Formats**: Supports file upload and base64 encoded images
-- **Comprehensive Health Analysis**: Full health report with jaundice detection integrated
-- **CORS Enabled**: Ready for frontend integration
+- **Multi-Modal Inference**: Process images (Face/Eyes) and audio (Voice) in a single request.
+- **Jaundice Detection**:
+  - Uses **EfficientNet-B0** Deep Learning models.
+  - specialized models for **Face** and **Eyes**.
+  - **High Accuracy (92% Face, 86% Eyes)**.
+- **Parkinson's Detection**:
+  - Uses **Random Forest Classifier** on acoustic biomarkers.
+  - Analyzes **16 distinct vocal features** (Jitter, Shimmer, HNR, etc.).
+  - **97.6% Accuracy** on test data.
+- **Real-Time Analysis**: Fast inference on CPU or GPU/MPS.
+- **Health Score Engine**: integrated scoring system that quantifies risk based on detection confidence.
 
-## Model Performance
-| Model | Test Accuracy | ROC AUC |
-|-------|--------------|---------|
-| Face | 92% | - |
-| Eyes | 86% | 96.43% |
+---
 
-## Tech Stack
-- **Framework**: FastAPI (Python)
-- **Deep Learning**: PyTorch, EfficientNet (timm)
-- **Image Processing**: Pillow, OpenCV
+## 🚀 Model Performance
+
+### 1. Parkinson's Detection (Audio)
+The vocal biomarker system uses a Random Forest Classifier trained on acoustic features extracted via `parselmouth`. It demonstrates exceptional sensitivity for early detection.
+
+| Metric | Score | Description |
+| :--- | :--- | :--- |
+| **Accuracy** | **97.61%** | The percentage of total predictions that were correct. |
+| **F1 Score** | **96.15%** | Harmonic mean of Precision and Recall (crucial for medical diagnosis). |
+| **R2 Score** | **0.86** | Goodness of fit (Statistical measure). |
+
+### 2. Jaundice Detection (Image)
+The vision system employs a weighted ensemble of two EfficientNet models to detect diagnostic tinting in skin and sclera.
+
+| Model | Test Accuracy | ROC AUC | Description |
+| :--- | :--- | :--- | :--- |
+| **Face Model** | **92.00%** | - | Detects general skin discoloration and pallor. |
+| **Eye Model** | **86.00%** | **96.43%** | Highly sensitive to scleral icterus (yellowing of eyes). |
+
+---
+
+## Technical Architecture
+
+### Tech Stack
+- **Framework**: FastAPI (Python 3.9+)
+- **Deep Learning**: PyTorch, EfficientNet (`timm`)
+- **Machine Learning**: Scikit-Learn (`sklearn`), Random Forest
+- **Audio Processing**: Parselmouth (Praat), Librosa, SoundFile
+- **Image Processing**: OpenCV, Pillow
 - **Server**: Uvicorn
 
-## Project Structure
-```
-demo-server/
-├── main.py                    # FastAPI application entry
-├── config.py                  # Configuration settings
-├── requirements.txt           # Python dependencies
-├── Dockerfile                 # Docker configuration
-├── routers/
-│   ├── health.py             # Health check endpoint
-│   └── inference.py          # Prediction endpoints
-├── schemas/
-│   └── request_response.py   # Pydantic models
-├── services/
-│   ├── model_engine.py       # Model loading & inference
-│   └── decision_maker.py     # Prediction aggregation
-├── jaundice_detection/       # ML module
-│   ├── model.py              # EfficientNet architecture
-│   ├── predictor.py          # Inference wrapper
-│   ├── train.py              # Training script
-│   ├── prepare_dataset.py    # Dataset utilities
-│   ├── extract_eyes.py       # Eye extraction
-│   └── weights/              # Trained model weights
-│       ├── face/best_model.pth
-│       └── eyes/best_model.pth
-└── assets/                   # Uploaded images
-```
+### Methodology
+#### A. Jaundice Detection Algorithm
+1. **Preprocessing**: Images are resized and normalized.
+2. **Inference**: Parallel execution of Face and Eye EfficientNet models.
+3. **Ensemble**: Results are aggregated; if **any** model detects jaundice with high confidence, the system flags a positive result.
+
+#### B. Parkinson's Detection Algorithm
+1. **Feature Engineering**: Extracts 16 key acoustic features including **F0 (Pitch)**, **Jitter** (Frequency perturbation), **Shimmer** (Amplitude perturbation), and **HNR** (Harmonic-to-Noise Ratio).
+2. **Normalization**: Features are scaled using a pre-fitted `MinMaxScaler`.
+3. **Classification**: processed features are fed into the Random Forest model for binary classification.
+
+---
 
 ## Installation & Setup
 
 ### Prerequisites
 - Python 3.9+
-- CUDA (optional, for GPU inference)
+- MPS (Mac) or CUDA (Linux/Windows) recommended for performance.
 
 ### Local Setup
-1. Clone the repository:
+1. **Clone the repository:**
    ```bash
    git clone <repository-url>
-   cd demo-server
+   cd disease-detection-api
    ```
 
-2. Install dependencies:
+2. **Install dependencies:**
    ```bash
+   # Install generic dependencies
    pip install -r requirements.txt
+   
+   # Note: Creating a virtual environment is recommended
+   python3 -m venv venv
+   source venv/bin/activate
    ```
 
-3. Ensure model weights are in place:
-   ```
-   jaundice_detection/weights/face/best_model.pth
-   jaundice_detection/weights/eyes/best_model.pth
-   ```
-
-4. Run the server:
+3. **Run the server:**
    ```bash
-   uvicorn main:app --reload --port 8000
+   uvicorn main:app --reload --port 8001
    ```
-
-   The server will start at `http://localhost:8000`
+   The API will be available at `http://0.0.0.0:8001`.
 
 ### Docker Setup
 ```bash
-docker build -t jaundice-api .
-docker run -p 8000:8000 jaundice-api
+docker build -t disease-api .
+docker run -p 8001:8001 disease-api
 ```
+
+---
 
 ## API Endpoints
 
-### Health Check
-- **URL**: `GET /health`
-- **Response**:
-  ```json
-  {
-    "status": "ok",
-    "version": "1.0.0",
-    "models": {
-      "status": "loaded",
-      "loaded_models": ["face", "eyes"],
-      "device": "mps"
-    }
-  }
-  ```
-
-### Disease Inference
+### 🩺 Disease Inference (Combined)
 - **URL**: `POST /infer`
-- **Description**: Universal endpoint for Jaundice (image) and Parkinson's (audio) detection.
+- **Description**: The primary endpoint. Upload any number of images and/or an audio file. The system automagically routes inputs to the correct models.
 - **Body**: `multipart/form-data`
-  - `files`: List of images (face/eyes)
-  - `audio`: Audio file (wav/mp3)
+  - `files`: List of image files (Face/Eyes)
+  - `audio`: Audio recording (.wav, .mp3)
 - **Response**:
   ```json
   {
-    "health_score": 95,
+    "health_score": 40,
     "jaundice_analysis": {
-      "detected": false,
-      "confidence": 98.5,
-      "severity": "None",
-      "tip": "No signs of jaundice detected."
+      "detected": true,
+      "confidence": 99.5,
+      "severity": "Severe",
+      "tip": "Significant jaundice signs detected. Seek medical attention promptly."
     },
     "audio_analysis": {
-      "pitch_hz": 120.5,
-      "jitter_percent": 0.45,
-      "parkinsons_detected": false,
-      "confidence": 98.5
+      "pitch_hz": 115.4,
+      "jitter_percent": 1.2,
+      "parkinsons_detected": true,
+      "confidence": 97.6
     },
     "recommendations": [
-      "Stay hydrated.",
-      "Get quality sleep."
+        "⚠️ Jaundice indicators detected.",
+        "⚠️ Audio analysis suggests potential Parkinson's indicators."
     ],
     "images": ["/assets/uuid.jpg"]
   }
   ```
 
-### Demo Inference
+### 🔬 Health Check
+- **URL**: `GET /health`
+- **Response**: Returns server status, loaded models, and active device (CPU/MPS/CUDA).
+
+### 🧪 Demo Inference
 - **URL**: `POST /demo/infer`
-- **Description**: Returns curated demo data for testing UI integration.
+- **Description**: Returns static demo data for UI testing purposes without running heavy inference.
 
-## Retraining Models
-
-To retrain the jaundice detection models:
-
-1. **Prepare your dataset**:
-   ```bash
-   cd jaundice_detection
-   python prepare_dataset.py --raw-dir /path/to/raw/images --output-dir dataset
-   ```
-
-2. **Train the model**:
-   ```bash
-   python train.py --model-type face --data-dir dataset --epochs 30
-   python train.py --model-type eyes --data-dir dataset_eyes --epochs 30
-   ```
-
-3. Move the new weights to `weights/face/` and `weights/eyes/`
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DEVICE` | `cuda` | Device for inference (`cuda` or `cpu`) |
-| `ENV` | `development` | Environment mode |
+---
 
 ## License
 MIT
