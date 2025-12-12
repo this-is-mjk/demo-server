@@ -7,6 +7,7 @@ The **Disease Detection API** is a comprehensive diagnostic system that leverage
 - **Multi-Modal Inference**: Process images (Face/Eyes) and audio (Voice) in a single request.
 - **Jaundice Detection**:
   - Uses **EfficientNet-B0** Deep Learning models.
+  - Used both detection through skin and eye color, to give complete diagnosis.
   - specialized models for **Face** and **Eyes**.
   - **High Accuracy (92% Face, 86% Eyes)**.
 - **Parkinson's Detection**:
@@ -18,7 +19,7 @@ The **Disease Detection API** is a comprehensive diagnostic system that leverage
 
 ---
 
-## 🚀 Model Performance
+## Model Performance
 
 ### 1. Parkinson's Detection (Audio)
 The vocal biomarker system uses a Random Forest Classifier trained on acoustic features extracted via `parselmouth`. It demonstrates exceptional sensitivity for early detection.
@@ -66,7 +67,6 @@ The vision system employs a weighted ensemble of two EfficientNet models to dete
 
 ### Prerequisites
 - Python 3.9+
-- MPS (Mac) or CUDA (Linux/Windows) recommended for performance.
 
 ### Local Setup
 1. **Clone the repository:**
@@ -101,7 +101,7 @@ docker run -p 8001:8001 disease-api
 
 ## API Endpoints
 
-### 🩺 Disease Inference (Combined)
+### Disease Inference (Combined)
 - **URL**: `POST /infer`
 - **Description**: The primary endpoint. Upload any number of images and/or an audio file. The system automagically routes inputs to the correct models.
 - **Body**: `multipart/form-data`
@@ -131,15 +131,12 @@ docker run -p 8001:8001 disease-api
   }
   ```
 
-### 🔬 Health Check
+### Health Check
 - **URL**: `GET /health`
 - **Response**: Returns server status, loaded models, and active device (CPU/MPS/CUDA).
 
-### 🧪 Demo Inference
+### Demo Inference
 - **URL**: `POST /demo/infer`
 - **Description**: Returns static demo data for UI testing purposes without running heavy inference.
 
 ---
-
-## License
-MIT

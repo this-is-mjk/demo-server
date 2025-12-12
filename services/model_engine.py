@@ -30,7 +30,7 @@ class ModelEngine:
         eyes_exists = Path(EYES_MODEL_PATH).exists()
         
         if not face_exists and not eyes_exists:
-            print("⚠ Warning: No model weights found. Please ensure models are in jaundice_detection/weights/")
+            print("Warning: No model weights found. Please ensure models are in jaundice_detection/weights/")
             print(f"  Expected face model: {FACE_MODEL_PATH}")
             print(f"  Expected eyes model: {EYES_MODEL_PATH}")
             self.predictor = None
@@ -42,9 +42,9 @@ class ModelEngine:
                 eyes_model_path=EYES_MODEL_PATH if eyes_exists else None,
                 device=DEVICE
             )
-            print("✓ Models loaded successfully!")
+            print("Models loaded successfully!")
         except Exception as e:
-            print(f"✗ Error loading models: {e}")
+            print(f"Error loading models: {e}")
             self.predictor = None
     
     async def predict_face(self, image_bytes: bytes) -> Dict:

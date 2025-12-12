@@ -211,12 +211,12 @@ async def infer_images(
     ]
     
     if is_jaundice:
-        recommendations.insert(0, "⚠️ Jaundice indicators detected. Please consult a healthcare provider.")
+        recommendations.insert(0, "Jaundice indicators detected. Please consult a healthcare provider.")
         if severity in ["Moderate", "Severe"]:
             recommendations.insert(1, "Consider getting liver function tests done.")
             
     if audio_analysis and audio_analysis.parkinsons_detected:
-        recommendations.insert(0, "⚠️ Audio analysis suggests potential Parkinson's indicators. Please consult a specialist.")
+        recommendations.insert(0, "Audio analysis suggests potential Parkinson's indicators. Please consult a specialist.")
 
     return InferenceResponse(
         health_score=health_score,
